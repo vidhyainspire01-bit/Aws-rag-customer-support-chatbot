@@ -1,0 +1,8 @@
+{
+  "doc_id": "bank_statement_aug2025_aisra_bank.txt",
+  "type": "bank_statement",
+  "account_holder": "Aisha Rao",
+  "account_last4": "5678",
+  "closing_balance": 127250.0,
+  "currency": "INR"
+}

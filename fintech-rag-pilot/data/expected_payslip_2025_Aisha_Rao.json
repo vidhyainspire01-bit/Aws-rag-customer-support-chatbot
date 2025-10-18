@@ -1,0 +1,10 @@
+{
+  "doc_id": "payslip_2025_Aisha_Rao.txt",
+  "type": "payslip",
+  "employee_name": "Aisha Rao",
+  "employee_id": "EMP-4783",
+  "gross_pay": 135500.0,
+  "net_pay": 104950.0,
+  "currency": "INR",
+  "bank_last4": "5678"
+}

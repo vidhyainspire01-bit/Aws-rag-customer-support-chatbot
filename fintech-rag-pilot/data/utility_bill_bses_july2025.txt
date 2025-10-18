@@ -1,0 +1,5 @@
+BSES ELECTRICITY
+Consumer Name: Aisha Rao
+Billing Period: 2025-07-01 to 2025-07-31
+Amount Due: 3,120.50 INR
+Due Date: 2025-08-20

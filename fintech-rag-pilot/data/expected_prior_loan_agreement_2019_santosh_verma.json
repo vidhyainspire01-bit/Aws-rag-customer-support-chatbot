@@ -1,0 +1,10 @@
+{
+  "doc_id": "prior_loan_agreement_2019_santosh_verma.txt",
+  "type": "loan_agreement",
+  "lender": "Metro Bank Finance",
+  "borrower": "Santosh Verma",
+  "agreement_date": "2019-05-20",
+  "original_principal": 500000.0,
+  "interest_rate_percent": 9.5,
+  "currency": "INR"
+}

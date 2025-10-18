@@ -1,0 +1,9 @@
+{
+  "doc_id": "purchase_order_werize_office_supplies_20250730.txt",
+  "type": "purchase_order",
+  "po_number": "PO-2025-0730",
+  "po_date": "2025-07-30",
+  "vendor": "OfficePlus Supplies",
+  "total_value": 75000.0,
+  "currency": "INR"
+}

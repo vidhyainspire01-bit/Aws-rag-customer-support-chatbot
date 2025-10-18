@@ -1,0 +1,207 @@
+#!/usr/bin/env python3
+# src/embeddings.py
+import sys
+import argparse
+from pathlib import Path
+import json
+from datetime import datetime, timezone
+import numpy as np
+from sentence_transformers import SentenceTransformer
+
+# chromadb import (we use PersistentClient)
+try:
+    import chromadb
+except Exception as e:
+    print("[ERROR] chromadb import failed:", e)
+    raise
+
+# allow importing ingest.ingest_folder from src/
+ROOT_DIR = Path(__file__).resolve().parents[1]
+SRC_DIR = ROOT_DIR / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+try:
+    from ingest import ingest_folder  # expects ingest_folder(folder) -> list of docs
+except Exception as e:
+    print("[ERROR] failed to import ingest.ingest_folder:", e)
+    raise
+
+# === Defaults / Config ===
+DEFAULT_MODEL = "all-MiniLM-L6-v2"
+DEFAULT_PERSIST = ROOT_DIR / "chromadb_store"
+DEFAULT_COLLECTION = "werize_docs"
+DEFAULT_DATA_DIR = ROOT_DIR / "data"
+DEFAULT_BATCH = 128
+
+
+def create_persistent_client(persist_path: Path):
+    """
+    Create a chromadb PersistentClient pointed at persist_path.
+    """
+    persist_path.mkdir(parents=True, exist_ok=True)
+    try:
+        client = chromadb.PersistentClient(path=str(persist_path))
+    except Exception as e:
+        # fallback: try simple constructor (older/newer chroma builds)
+        try:
+            client = chromadb.Client()
+            # attempt to use client as-is; some builds won't persist to path but still work
+        except Exception as e2:
+            print("[ERROR] Failed to create chromadb PersistentClient and fallback Client:", e, e2)
+            raise
+    return client
+
+
+def build_chroma(
+    docs,
+    persist_directory: Path = DEFAULT_PERSIST,
+    collection_name: str = DEFAULT_COLLECTION,
+    model_name: str = DEFAULT_MODEL,
+    batch_size: int = DEFAULT_BATCH,
+    delete_existing: bool = True,
+):
+    """Build and persist Chroma vector index using chromadb.PersistentClient (v1.2+)."""
+    if not docs:
+        print("[WARN] No documents provided to index.")
+        return
+
+    persist_directory = Path(persist_directory)
+    persist_directory.mkdir(parents=True, exist_ok=True)
+
+    client = create_persistent_client(persist_directory)
+
+    # create/get collection; try a few different APIs for compatibility
+    collection = None
+    try:
+        # preferred: get_or_create_collection
+        collection = client.get_or_create_collection(name=collection_name)
+    except Exception:
+        try:
+            # some versions expose get_collection / create_collection
+            collection = client.get_collection(collection_name)
+        except Exception:
+            try:
+                collection = client.create_collection(name=collection_name)
+            except Exception:
+                # last resort: try client.get_or_create_collection again
+                collection = client.get_or_create_collection(name=collection_name)
+
+    # Optionally delete existing collection to avoid duplicates
+    if delete_existing:
+        try:
+            # many versions support delete_collection(name=...)
+            client.delete_collection(name=collection_name)
+            # recreate
+            collection = client.create_collection(name=collection_name)
+        except Exception:
+            # If delete_collection not supported, try collection.delete() or ignore
+            try:
+                if hasattr(collection, "delete"):
+                    collection.delete()
+                    collection = client.create_collection(name=collection_name)
+            except Exception:
+                # ignore; we will append if necessary
+                pass
+
+    print(f"[INFO] Indexing into collection '{collection_name}' at '{persist_directory}' using model '{model_name}'")
+
+    # load encoder
+    model = SentenceTransformer(model_name)
+
+    texts = [d["text"] for d in docs]
+    ids = [d["chunk_id"] for d in docs]
+    metadatas = [
+        {
+            "doc_id": d.get("doc_id"),
+            "file_type": d.get("file_type", ""),
+            "source": d.get("source", ""),
+        }
+        for d in docs
+    ]
+
+    # Batch encode to avoid OOM
+    embeddings_batches = []
+    for i in range(0, len(texts), batch_size):
+        batch_texts = texts[i : i + batch_size]
+        emb = model.encode(batch_texts, show_progress_bar=True, convert_to_numpy=True)
+        embeddings_batches.append(emb)
+    embeddings = np.vstack(embeddings_batches) if embeddings_batches else np.zeros((0, model.get_sentence_embedding_dimension()))
+    embeddings_list = embeddings.tolist()
+
+    # Add to collection. Use collection.add(...) signature common across versions
+    try:
+        collection.add(documents=texts, embeddings=embeddings_list, ids=ids, metadatas=metadatas)
+    except Exception as e:
+        # Try alternate param names for older/newer chroma versions
+        try:
+            collection.add(documents=texts, ids=ids, metadatas=metadatas, embeddings=embeddings_list)
+        except Exception as e2:
+            print("[ERROR] Failed to add vectors to collection:", e, e2)
+            raise
+
+    # Persist (some clients persist automatically; call persist if available)
+    try:
+        client.persist()
+    except Exception:
+        pass
+
+    # manifest
+    meta = {
+        "indexed_at": datetime.now(timezone.utc).isoformat(),
+        "model_name": model_name,
+        "num_vectors": len(ids),
+        "collection": collection_name,
+        "persist_path": str(persist_directory),
+    }
+    try:
+        with open(persist_directory / "index_manifest.json", "w", encoding="utf-8") as f:
+            json.dump(meta, f, indent=2)
+    except Exception:
+        with open("index_manifest.json", "w", encoding="utf-8") as f:
+            json.dump(meta, f, indent=2)
+
+    print(f"✅ Indexed {len(ids)} chunks into Chroma (collection='{collection_name}') at {persist_directory}")
+    print(f"[Manifest] Saved index metadata → {persist_directory / 'index_manifest.json'}")
+
+
+def parse_args():
+    p = argparse.ArgumentParser(description="Build Chroma embeddings for a folder of documents.")
+    p.add_argument("--data", "-d", type=str, default=str(DEFAULT_DATA_DIR), help="Folder with source documents to ingest")
+    p.add_argument("--persist", "-p", type=str, default=str(DEFAULT_PERSIST), help="Chroma persist directory to write to")
+    p.add_argument("--collection", "-c", type=str, default=DEFAULT_COLLECTION, help="Chroma collection name")
+    p.add_argument("--model", "-m", type=str, default=DEFAULT_MODEL, help="SentenceTransformer model name")
+    p.add_argument("--batch", type=int, default=DEFAULT_BATCH, help="Batch size for embedding")
+    p.add_argument("--no-delete", action="store_true", help="Do not delete existing collection (append instead)")
+    return p.parse_args()
+
+
+def main():
+    args = parse_args()
+    data_folder = Path(args.data)
+    if not data_folder.exists():
+        print(f"[ERROR] data folder does not exist: {data_folder}")
+        sys.exit(1)
+
+    print(f"[INFO] Ingesting documents from: {data_folder}")
+    docs = ingest_folder(str(data_folder))
+    if not docs:
+        print("❌ No docs found to index. Make sure the data folder contains files and ingest runs correctly.")
+        sys.exit(1)
+
+    persist_path = Path(args.persist)
+    delete_existing = not args.no_delete
+
+    build_chroma(
+        docs,
+        persist_directory=persist_path,
+        collection_name=args.collection,
+        model_name=args.model,
+        batch_size=args.batch,
+        delete_existing=delete_existing,
+    )
+    print("[DONE]")
+
+
+if __name__ == "__main__":
+    main()

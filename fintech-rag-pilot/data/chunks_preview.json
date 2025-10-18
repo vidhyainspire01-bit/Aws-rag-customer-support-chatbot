@@ -1,0 +1,37 @@
+[
+  {
+    "doc_id": "bank_statement_aug2025_aisra_bank.txt",
+    "chunk_id": "bank_statement_aug2025_aisra_bank.txt_0",
+    "file_type": "txt",
+    "source": "internal",
+    "text": "AISRA BANK\nAccount holder: Aisha Rao\nAccount number: **** **** **** 5678\nStatement period: 2025-08-01 to 2025-08-31\nClosing balance: 127,250.00 INR"
+  },
+  {
+    "doc_id": "credit_summary_report_june2025_shreya_patil.txt",
+    "chunk_id": "credit_summary_report_june2025_shreya_patil.txt_0",
+    "file_type": "txt",
+    "source": "internal",
+    "text": "CREDIT BUREAU\nName: Shreya Patil\nReport Date: 2025-06-15\nCredit Score: 720"
+  },
+  {
+    "doc_id": "employment_letter_techflow_solutions.txt",
+    "chunk_id": "employment_letter_techflow_solutions.txt_0",
+    "file_type": "txt",
+    "source": "internal",
+    "text": "TECHFLOW SOLUTIONS PVT LTD\nEmployee: Rohit Sharma\nEmployee ID: TF-992\nPosition: Senior Engineer\nStart Date: 2019-06-15\nAnnual CTC: 9,60,000.00 INR"
+  },
+  {
+    "doc_id": "expected_bank_statement_aug2025_aisra_bank.json",
+    "chunk_id": "expected_bank_statement_aug2025_aisra_bank.json_0",
+    "file_type": "json",
+    "source": "internal",
+    "text": "{\n  \"doc_id\": \"bank_statement_aug2025_aisra_bank.txt\",\n  \"type\": \"bank_statement\",\n  \"account_holder\": \"Aisha Rao\",\n  \"account_last4\": \"5678\",\n  \"closing_balance\": 127250.0,\n  \"currency\": \"INR\"\n}"
+  },
+  {
+    "doc_id": "expected_credit_summary_report_june2025_shreya_patil.json",
+    "chunk_id": "expected_credit_summary_report_june2025_shreya_patil.json_0",
+    "file_type": "json",
+    "source": "internal",
+    "text": "{\n  \"doc_id\": \"credit_summary_report_june2025_shreya_patil.txt\",\n  \"type\": \"credit_report\",\n  \"name\": \"Shreya Patil\",\n  \"report_date\": \"2025-06-15\",\n  \"credit_score\": 720,\n  \"currency\": \"INR\"\n}"
+  }
+]

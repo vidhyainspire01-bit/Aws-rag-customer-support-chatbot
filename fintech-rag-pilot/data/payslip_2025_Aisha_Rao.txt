@@ -1,0 +1,9 @@
+ACME CORPORATION
+Payroll Statement
+Employee: Aisha Rao
+Employee ID: EMP-4783
+Pay Period: 2025-08-01 to 2025-08-31
+Pay Date: 2025-09-01
+Gross Pay: 135,500.00 INR
+Net Pay: 104,950.00 INR
+Bank Account (last 4): **** 5678
